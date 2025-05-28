@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: tv-webhook
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: python webhook_server.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        value: "7994754245:AAFcckYNSTEnZkcaoIPNbcqJULo5GHv5wro"
+      - key: CHAT_ID
+        value: "5369718011"
