@@ -4,19 +4,21 @@ import os
 
 app = Flask(__name__)
 
-TELEGRAM_TOKEN = os.getenv("7994754245:AAFcckYNSTEnZkcaoIPNbcqJULo5GHv5wro")
-CHAT_ID = os.getenv("5369718011")
+# Тут ми дістаємо значення з середовища, а не передаємо сам токен!
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-@app.route('/', methods=['POST'])
+@app.route('/webhook', methods=['POST'])  # 🔥 важливо: саме /webhook
 def webhook():
     data = request.json
     message = f"📩 Сигнал з TradingView:\n{data}"
-    
+
     telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         'chat_id': CHAT_ID,
         'text': message
     }
+
     requests.post(telegram_url, json=payload)
     return 'OK'
 
