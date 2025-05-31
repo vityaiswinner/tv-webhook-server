@@ -4,22 +4,31 @@ import os
 
 app = Flask(__name__)
 
-# Тут ми дістаємо значення з середовища, а не передаємо сам токен!
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# Справжні токени не вставляй у код напряму!
+TELEGRAM_TOKEN = "7994754245:AAFcckYNSTEnZkcaoIPNbcqJULo5GHv5wro"
+CHAT_ID = "5369718011"
 
-@app.route('/webhook', methods=['POST'])  # 🔥 важливо: саме /webhook
+@app.route('/', methods=['POST'])
 def webhook():
     data = request.json
-    message = f"📩 Сигнал з TradingView:\n{data}"
+    message = data.get("message", "")  # витягуємо текст з {"message": "..."}
 
+    # Надішли сигнал в Telegram
+    telegram_msg = f"📩 Сигнал з TradingView:\n{message}"
     telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
+    requests.post(telegram_url, json={
         'chat_id': CHAT_ID,
-        'text': message
-    }
+        'text': telegram_msg
+    })
 
-    requests.post(telegram_url, json=payload)
+    # Реакція на сигнали
+    if "Open Long" in message:
+        # Тут логіка відкриття Long
+        print("➡️ Відкриваємо ЛОНГ")
+    elif "Close entry(s) order Long Open" in message:
+        # Тут логіка закриття Long і відкриття Short
+        print("⬅️ Закриваємо ЛОНГ, відкриваємо ШОРТ")
+
     return 'OK'
 
 if __name__ == '__main__':
