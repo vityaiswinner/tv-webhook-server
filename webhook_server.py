@@ -8,30 +8,37 @@ import json
 app = Flask(__name__)
 
 # 🔐 BYBIT
-BYBIT_API_KEY = "ТВОYЙ_API_KE"
+BYBIT_API_KEY = "ТВОЙ_API_KEY"
 BYBIT_API_SECRET = "ТВОЙ_API_SECRET"
 
 # 📲 TELEGRAM
 TELEGRAM_TOKEN = "7994754245:AAFcckYNSTEnZkcaoIPNbcqJULo5GHv5wro"
 CHAT_ID = "5369718011"
 
-# ⚙️ Функція для надсилання в Telegram
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {'chat_id': CHAT_ID, 'text': text}
-    requests.post(url, json=payload)
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code != 200:
+            print(f"Telegram error: {response.text}")
+    except Exception as e:
+        print(f"Telegram exception: {e}")
 
-# ⚙️ Функція запиту до Bybit
 def send_signed_request(endpoint, method="POST", params=None):
     if params is None:
         params = {}
 
     timestamp = str(int(time.time() * 1000))
-    recv_window = "5000"
-    payload = f"{timestamp}{BYBIT_API_KEY}{recv_window}{json.dumps(params)}"
+    method_upper = method.upper()
+    # Тіло запиту — без пробілів
+    body = json.dumps(params, separators=(',', ':')) if params else ""
+    # Підпис складаємо по документації
+    payload = timestamp + method_upper + endpoint + "" + body  # queryString пустий
+
     signature = hmac.new(
-        bytes(BYBIT_API_SECRET, "utf-8"),
-        bytes(payload, "utf-8"),
+        BYBIT_API_SECRET.encode('utf-8'),
+        payload.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
 
@@ -39,39 +46,46 @@ def send_signed_request(endpoint, method="POST", params=None):
         "X-BAPI-API-KEY": BYBIT_API_KEY,
         "X-BAPI-TIMESTAMP": timestamp,
         "X-BAPI-SIGN": signature,
-        "X-BAPI-RECV-WINDOW": recv_window,
+        "X-BAPI-RECV-WINDOW": "5000",
         "Content-Type": "application/json"
     }
 
     url = f"https://api.bybit.com{endpoint}"
-    response = requests.request(method, url, headers=headers, json=params)
-    return response.json()
+    response = requests.request(method_upper, url, headers=headers, data=body)
+    try:
+        return response.json()
+    except Exception as e:
+        print(f"Bybit response error: {e}, response text: {response.text}")
+        return {}
 
-# ⚙️ Відкрити позицію
 def open_position(side):
     order = {
         "category": "linear",
         "symbol": "ARBUSDT",
         "side": side,
         "orderType": "Market",
-        "qty": "10",  # Сума — заміни на свою
+        "qty": "10",
         "timeInForce": "GoodTillCancel",
     }
-    return send_signed_request("/v5/order/create", "POST", order)
+    result = send_signed_request("/v5/order/create", "POST", order)
+    print(f"open_position result: {result}")
+    return result
 
-# ⚙️ Закрити всі відкриті ордери
 def close_all_positions():
     close = {
         "category": "linear",
         "symbol": "ARBUSDT",
         "mode": "BothSide"
     }
-    return send_signed_request("/v5/position/close-pnl", "POST", close)
+    result = send_signed_request("/v5/position/close-pnl", "POST", close)
+    print(f"close_all_positions result: {result}")
+    return result
 
-# 🎯 WEBHOOK
 @app.route('/', methods=['POST'])
 def webhook():
     data = request.json
+    print(f"Received webhook data: {data}")
+
     message = data.get('message', '')
 
     if "Open Long" in message:
